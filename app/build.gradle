@@ -17,8 +17,10 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
-        // API base URL — change to your server IP/domain
-        buildConfigField "String", "BASE_URL", "\"http://192.168.0.22:8000/\""
+        // API 서버 설정
+        buildConfigField "String", "BASE_URL",    "\"http://221.158.214.211:8000/\""
+        buildConfigField "String", "SENSOR_ID",   "\"S001\""
+        buildConfigField "long",   "INTERVAL_MS", "60000L"    // 60초 폴링
     }
 
     buildTypes {

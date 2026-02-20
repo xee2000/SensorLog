@@ -7,149 +7,116 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
-import com.github.mikephil.charting.components.XAxis
-import com.github.mikephil.charting.data.Entry
-import com.github.mikephil.charting.data.LineData
-import com.github.mikephil.charting.data.LineDataSet
-import com.github.mikephil.charting.formatter.ValueFormatter
-import com.sensorlog.databinding.FragmentDashboardBinding
-import com.sensorlog.model.SensorData
+import com.sensorlog.databinding.FragmentLiveDataBinding
+import com.sensorlog.model.SensorReading
 import com.sensorlog.model.UiState
 import com.sensorlog.util.DateUtils
+import com.sensorlog.util.ThresholdPreferences
 import com.sensorlog.viewmodel.SensorViewModel
 
+/**
+ * 화면 2: 현재 최신 센서 값 표시
+ * - 온도 / 습도 카드 (큰 숫자)
+ * - 임계값 대비 상태 표시 (정상 / 경고)
+ * - 수동 새로고침 버튼
+ */
 class DashboardFragment : Fragment() {
 
-    private var _binding: FragmentDashboardBinding? = null
+    private var _binding: FragmentLiveDataBinding? = null
     private val binding get() = _binding!!
     private val viewModel: SensorViewModel by viewModels()
+    private lateinit var prefs: ThresholdPreferences
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
-        _binding = FragmentDashboardBinding.inflate(inflater, container, false)
+        _binding = FragmentLiveDataBinding.inflate(inflater, container, false)
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupChart()
+        prefs = ThresholdPreferences(requireContext())
+
         observeViewModel()
+
+        binding.btnRefresh.setOnClickListener { fetchLatest() }
+        binding.swipeRefresh.setOnRefreshListener {
+            fetchLatest()
+            binding.swipeRefresh.isRefreshing = false
+        }
+
+        fetchLatest()
     }
 
-    private fun setupChart() {
-        binding.lineChart.apply {
-            description.isEnabled = false
-            setTouchEnabled(true)
-            isDragEnabled = true
-            setScaleEnabled(true)
-            setPinchZoom(true)
-            setDrawGridBackground(false)
-            legend.isEnabled = true
-            axisRight.isEnabled = false
+    override fun onResume() {
+        super.onResume()
+        // 탭 전환 시에도 최신값 갱신
+        fetchLatest()
+    }
 
-            xAxis.apply {
-                position = XAxis.XAxisPosition.BOTTOM
-                setDrawGridLines(false)
-                granularity = 1f
-            }
-
-            axisLeft.apply {
-                setDrawGridLines(true)
-                gridColor = Color.parseColor("#EEEEEE")
-            }
-        }
+    private fun fetchLatest() {
+        val sensorId = prefs.getSensorId().ifBlank { "S001" }
+        viewModel.loadLatestData(sensorId)
     }
 
     private fun observeViewModel() {
-        // 최신 데이터 카드
         viewModel.latestData.observe(viewLifecycleOwner) { state ->
             when (state) {
                 is UiState.Loading -> {
-                    binding.progressDashboard.visibility = View.VISIBLE
+                    binding.progressBar.visibility = View.VISIBLE
+                    binding.groupData.visibility   = View.GONE
+                    binding.tvError.visibility     = View.GONE
                 }
                 is UiState.Success -> {
-                    binding.progressDashboard.visibility = View.GONE
-                    updateLatestCards(state.data)
-                    updateChart(state.data)
+                    binding.progressBar.visibility = View.GONE
+                    binding.groupData.visibility   = View.VISIBLE
+                    binding.tvError.visibility     = View.GONE
+                    updateCards(state.data)
                 }
                 is UiState.Empty -> {
-                    binding.progressDashboard.visibility = View.GONE
-                    binding.tvNoDashboardData.visibility = View.VISIBLE
+                    binding.progressBar.visibility = View.GONE
+                    binding.groupData.visibility   = View.GONE
+                    binding.tvError.visibility     = View.VISIBLE
+                    binding.tvError.text           = "데이터가 없습니다."
                 }
                 is UiState.Error -> {
-                    binding.progressDashboard.visibility = View.GONE
-                    binding.tvNoDashboardData.visibility = View.VISIBLE
-                    binding.tvNoDashboardData.text = state.message
+                    binding.progressBar.visibility = View.GONE
+                    binding.groupData.visibility   = View.GONE
+                    binding.tvError.visibility     = View.VISIBLE
+                    binding.tvError.text           = state.message
                 }
             }
         }
-
-        // 요약 통계
-        viewModel.sensorSummary.observe(viewLifecycleOwner) { state ->
-            if (state is UiState.Success) {
-                val summary = state.data.firstOrNull() ?: return@observe
-                binding.tvAvgValue.text = String.format("평균: %.2f %s", summary.avgValue, summary.unit)
-                binding.tvMinValue.text = String.format("최솟값: %.2f", summary.minValue)
-                binding.tvMaxValue.text = String.format("최댓값: %.2f", summary.maxValue)
-                binding.tvCountValue.text = "측정 횟수: ${summary.count}회"
-            }
-        }
-
-        binding.btnRefreshDashboard.setOnClickListener {
-            viewModel.loadLatestData()
-            viewModel.loadSummary()
-        }
     }
 
-    private fun updateLatestCards(data: List<SensorData>) {
-        if (data.isEmpty()) {
-            binding.tvNoDashboardData.visibility = View.VISIBLE
-            return
-        }
-        binding.tvNoDashboardData.visibility = View.GONE
+    private fun updateCards(data: SensorReading) {
+        val tempMin = prefs.getTempMin().toDouble()
+        val tempMax = prefs.getTempMax().toDouble()
+        val humMin  = prefs.getHumidityMin().toDouble()
+        val humMax  = prefs.getHumidityMax().toDouble()
 
-        // 최신 측정값 카드 업데이트
-        val latest = data.firstOrNull()
-        latest?.let {
-            binding.tvLatestSensorName.text = it.sensorName.ifEmpty { it.sensorId }
-            binding.tvLatestValue.text = String.format("%.2f %s", it.value, it.unit)
-            binding.tvLatestTime.text = DateUtils.formatTimestamp(it.timestamp)
-        }
-    }
-
-    private fun updateChart(data: List<SensorData>) {
-        if (data.isEmpty()) return
-
-        // 센서별로 그룹화
-        val grouped = data.groupBy { it.sensorId }
-        val colors = listOf(
-            Color.parseColor("#2196F3"),
-            Color.parseColor("#4CAF50"),
-            Color.parseColor("#FF9800"),
-            Color.parseColor("#E91E63"),
-            Color.parseColor("#9C27B0")
+        // 온도 카드
+        binding.tvTemperatureValue.text = "%.1f°C".format(data.temperature)
+        val tempOk = data.temperature in tempMin..tempMax
+        binding.tvTemperatureStatus.text = if (tempOk) "정상" else "⚠️ 임계값 초과"
+        binding.tvTemperatureStatus.setTextColor(
+            if (tempOk) Color.parseColor("#4CAF50") else Color.parseColor("#F44336")
         )
+        binding.tvTemperatureRange.text = "범위: %.1f ~ %.1f°C".format(tempMin, tempMax)
 
-        val dataSets = grouped.entries.mapIndexed { index, (sensorId, readings) ->
-            val entries = readings.mapIndexed { i, d ->
-                Entry(i.toFloat(), d.value.toFloat())
-            }
-            LineDataSet(entries, readings.firstOrNull()?.sensorName ?: sensorId).apply {
-                color = colors[index % colors.size]
-                setCircleColor(colors[index % colors.size])
-                lineWidth = 2f
-                circleRadius = 3f
-                setDrawValues(false)
-                mode = LineDataSet.Mode.CUBIC_BEZIER
-            }
-        }
+        // 습도 카드
+        binding.tvHumidityValue.text = "%.1f%%".format(data.humidity)
+        val humOk = data.humidity in humMin..humMax
+        binding.tvHumidityStatus.text = if (humOk) "정상" else "⚠️ 임계값 초과"
+        binding.tvHumidityStatus.setTextColor(
+            if (humOk) Color.parseColor("#4CAF50") else Color.parseColor("#F44336")
+        )
+        binding.tvHumidityRange.text = "범위: %.1f ~ %.1f%%".format(humMin, humMax)
 
-        binding.lineChart.apply {
-            this.data = LineData(dataSets)
-            animateX(500)
-            invalidate()
-        }
+        // 공통
+        binding.tvSensorId.text   = "센서 ID: ${data.sensorId}"
+        binding.tvLastUpdated.text = "마지막 갱신: ${DateUtils.formatTimestamp(data.time)}"
     }
 
     override fun onDestroyView() {
