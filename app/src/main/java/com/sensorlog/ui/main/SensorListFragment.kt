@@ -50,6 +50,9 @@ class SensorListFragment : Fragment() {
         updateDateButtons()
         setupListeners()
         observeViewModel()
+
+        // 화면 진입 시 자동 조회
+        search()
     }
 
     private fun setupListeners() {
@@ -73,11 +76,11 @@ class SensorListFragment : Fragment() {
             ).show()
         }
 
-        // 빠른 날짜 필터 칩
-        binding.chipToday.setOnClickListener  { applyQuickRange(0) }
-        binding.chip3Days.setOnClickListener  { applyQuickRange(3) }
-        binding.chip7Days.setOnClickListener  { applyQuickRange(7) }
-        binding.chip30Days.setOnClickListener { applyQuickRange(30) }
+        // 빠른 날짜 필터 칩 — 누르면 날짜 변경 후 즉시 조회
+        binding.chipToday.setOnClickListener  { applyQuickRange(0);  search() }
+        binding.chip3Days.setOnClickListener  { applyQuickRange(3);  search() }
+        binding.chip7Days.setOnClickListener  { applyQuickRange(7);  search() }
+        binding.chip30Days.setOnClickListener { applyQuickRange(30); search() }
 
         // 조회 버튼
         binding.btnSearch.setOnClickListener { search() }
@@ -121,7 +124,7 @@ class SensorListFragment : Fragment() {
                     binding.progressBar.visibility = View.GONE
                     binding.tvEmpty.visibility     = View.GONE
                     binding.tvError.visibility     = View.GONE
-                    adapter.submitList(state.data)
+                    adapter.submitList(state.data.toMutableList())
                     binding.tvTotalCount.text = "총 ${state.data.size}건"
                 }
                 is UiState.Empty -> {
