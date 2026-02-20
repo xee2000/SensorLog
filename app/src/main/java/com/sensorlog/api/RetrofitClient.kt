@@ -1,6 +1,6 @@
 package com.sensorlog.api
 
-import com.sensorlog.BuildConfig
+import com.sensorlog.BuildConfig          // ← 반드시 sensorlog의 BuildConfig
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
