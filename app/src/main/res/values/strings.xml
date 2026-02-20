@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SensorLog</string>
+    <string name="nav_sensor_list">데이터 목록</string>
+    <string name="nav_dashboard">대시보드</string>
+    <string name="nav_settings">설정</string>
+</resources>
