@@ -230,11 +230,12 @@
                     android:textSize="14sp"
                     android:textColor="@color/text_primary" />
 
-                <com.github.mikephil.charting.charts.LineChart
+                <View
                     android:id="@+id/line_chart"
                     android:layout_width="match_parent"
                     android:layout_height="200dp"
-                    android:layout_marginTop="8dp" />
+                    android:layout_marginTop="8dp"
+                    android:background="@color/background_gray" />
 
                 <TextView
                     android:id="@+id/tv_no_dashboard_data"
