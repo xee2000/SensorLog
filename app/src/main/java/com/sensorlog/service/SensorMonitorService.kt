@@ -5,15 +5,16 @@ import android.content.Context
 import android.content.Intent
 import android.os.*
 import androidx.core.app.NotificationCompat
-import com.sensorlog.BuildConfig
 import com.sensorlog.api.RetrofitClient
 import com.sensorlog.ui.main.MainActivity
 import com.sensorlog.util.ThresholdPreferences
 import kotlinx.coroutines.*
 
 /**
- * 포그라운드 서비스 — BuildConfig.INTERVAL_MS(60초)마다 센서 최신값을 조회하여
+ * 포그라운드 서비스 — 60초마다 센서 최신값을 조회하여
  * 임계값 초과 시 알림 + 반복 진동
+ *
+ * ※ BuildConfig import 없음 — 폴링 주기는 companion object 상수로 관리
  */
 class SensorMonitorService : Service() {
 
@@ -21,8 +22,11 @@ class SensorMonitorService : Service() {
         const val ACTION_START = "com.sensorlog.ACTION_START"
         const val ACTION_STOP  = "com.sensorlog.ACTION_STOP"
 
-        private const val CHANNEL_MONITORING = "ch_monitoring"
-        private const val CHANNEL_ALERT      = "ch_alert"
+        /** 폴링 주기 (밀리초) */
+        private const val INTERVAL_MS = 60_000L
+
+        private const val CHANNEL_MONITORING  = "ch_monitoring"
+        private const val CHANNEL_ALERT       = "ch_alert"
         private const val NOTIF_ID_MONITORING = 2001
         private const val NOTIF_ID_ALERT      = 2002
 
@@ -98,7 +102,7 @@ class SensorMonitorService : Service() {
         monitorJob = scope.launch {
             while (isActive) {
                 checkSensorValues()
-                delay(BuildConfig.INTERVAL_MS)   // 60초
+                delay(INTERVAL_MS)
             }
         }
     }
@@ -115,10 +119,10 @@ class SensorMonitorService : Service() {
             val temp     = data.temperature
             val humidity = data.humidity
 
-            val tempMin  = prefs.getTempMin().toDouble()
-            val tempMax  = prefs.getTempMax().toDouble()
-            val humMin   = prefs.getHumidityMin().toDouble()
-            val humMax   = prefs.getHumidityMax().toDouble()
+            val tempMin = prefs.getTempMin().toDouble()
+            val tempMax = prefs.getTempMax().toDouble()
+            val humMin  = prefs.getHumidityMin().toDouble()
+            val humMax  = prefs.getHumidityMax().toDouble()
 
             val alerts = mutableListOf<String>()
             if (temp < tempMin || temp > tempMax) {
@@ -128,9 +132,7 @@ class SensorMonitorService : Service() {
                 alerts.add("습도 %.1f%% (허용: %.1f ~ %.1f%%)".format(humidity, humMin, humMax))
             }
 
-            // 모니터링 상태 알림 업데이트
-            val statusText = "온도: %.1f°C | 습도: %.1f%%".format(temp, humidity)
-            updateMonitoringNotification(statusText)
+            updateMonitoringNotification("온도: %.1f°C | 습도: %.1f%%".format(temp, humidity))
 
             if (alerts.isNotEmpty()) {
                 showAlertNotification(alerts.joinToString("\n"))
@@ -163,7 +165,7 @@ class SensorMonitorService : Service() {
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "임계값 초과 경보"
-                enableVibration(false) // 직접 진동 제어
+                enableVibration(false)
             }
         )
     }
@@ -185,8 +187,8 @@ class SensorMonitorService : Service() {
             .build()
 
     private fun updateMonitoringNotification(text: String) {
-        val nm = getSystemService(NotificationManager::class.java)
-        nm.notify(NOTIF_ID_MONITORING, buildMonitoringNotification(text))
+        getSystemService(NotificationManager::class.java)
+            .notify(NOTIF_ID_MONITORING, buildMonitoringNotification(text))
     }
 
     private fun showAlertNotification(message: String) {
@@ -209,15 +211,14 @@ class SensorMonitorService : Service() {
     }
 
     // ─────────────────────────────────────────────
-    /** 임계값 초과 시 반복 진동 시작 (0ms 대기 → 500ms 진동 → 500ms 정지 → 반복) */
+    /** 임계값 초과 시 반복 진동 (0ms 대기 → 600ms 진동 → 400ms 정지 → 반복) */
     private fun startVibration() {
         if (isVibrating) return
         isVibrating = true
-        val pattern = longArrayOf(0, 600, 400)   // 대기, 진동, 정지
+        val pattern = longArrayOf(0, 600, 400)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val amplitudes = intArrayOf(0, 255, 0)
             vibrator.vibrate(
-                VibrationEffect.createWaveform(pattern, amplitudes, 0)
+                VibrationEffect.createWaveform(pattern, intArrayOf(0, 255, 0), 0)
             )
         } else {
             @Suppress("DEPRECATION")
