@@ -14,13 +14,15 @@ import kotlinx.coroutines.*
  * 포그라운드 서비스 — 60초마다 센서 최신값을 조회하여
  * 임계값 초과 시 알림 + 반복 진동
  *
- * ※ BuildConfig import 없음 — 폴링 주기는 companion object 상수로 관리
+ * 알림 삭제 시 즉시 재게시 (deleteIntent → ACTION_REPOST_*)
  */
 class SensorMonitorService : Service() {
 
     companion object {
-        const val ACTION_START = "com.sensorlog.ACTION_START"
-        const val ACTION_STOP  = "com.sensorlog.ACTION_STOP"
+        const val ACTION_START          = "com.sensorlog.ACTION_START"
+        const val ACTION_STOP           = "com.sensorlog.ACTION_STOP"
+        const val ACTION_REPOST_MONITOR = "com.sensorlog.ACTION_REPOST_MONITOR"
+        const val ACTION_REPOST_ALERT   = "com.sensorlog.ACTION_REPOST_ALERT"
 
         /** 폴링 주기 (밀리초) */
         private const val INTERVAL_MS = 60_000L
@@ -54,6 +56,10 @@ class SensorMonitorService : Service() {
     private lateinit var prefs: ThresholdPreferences
     private var isVibrating = false
 
+    /** 삭제 후 재게시를 위해 마지막 텍스트 보관 */
+    private var lastMonitoringText = "센서 모니터링 중..."
+    private var lastAlertMessage: String? = null
+
     // ─────────────────────────────────────────────
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -74,7 +80,7 @@ class SensorMonitorService : Service() {
             ACTION_START -> {
                 startForeground(
                     NOTIF_ID_MONITORING,
-                    buildMonitoringNotification("센서 모니터링 중...")
+                    buildMonitoringNotification(lastMonitoringText)
                 )
                 startMonitoring()
             }
@@ -82,6 +88,17 @@ class SensorMonitorService : Service() {
                 stopVibration()
                 cancelAlertNotification()
                 stopSelf()
+            }
+            // 사용자가 모니터링 알림을 닫았을 때 즉시 재게시
+            ACTION_REPOST_MONITOR -> {
+                startForeground(
+                    NOTIF_ID_MONITORING,
+                    buildMonitoringNotification(lastMonitoringText)
+                )
+            }
+            // 사용자가 경보 알림을 닫았을 때 즉시 재게시
+            ACTION_REPOST_ALERT -> {
+                lastAlertMessage?.let { showAlertNotification(it) }
             }
         }
         return START_STICKY
@@ -138,6 +155,7 @@ class SensorMonitorService : Service() {
                 showAlertNotification(alerts.joinToString("\n"))
                 startVibration()
             } else {
+                lastAlertMessage = null
                 cancelAlertNotification()
                 stopVibration()
             }
@@ -176,12 +194,26 @@ class SensorMonitorService : Service() {
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
     )
 
+    /** 알림이 삭제됐을 때 서비스로 repost 요청 */
+    private fun repostMonitorPendingIntent(): PendingIntent = PendingIntent.getService(
+        this, 10,
+        Intent(this, SensorMonitorService::class.java).apply { action = ACTION_REPOST_MONITOR },
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+    )
+
+    private fun repostAlertPendingIntent(): PendingIntent = PendingIntent.getService(
+        this, 11,
+        Intent(this, SensorMonitorService::class.java).apply { action = ACTION_REPOST_ALERT },
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+    )
+
     private fun buildMonitoringNotification(text: String): Notification =
         NotificationCompat.Builder(this, CHANNEL_MONITORING)
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setContentTitle("SensorLog 모니터링 중")
             .setContentText(text)
             .setContentIntent(mainPendingIntent())
+            .setDeleteIntent(repostMonitorPendingIntent())   // 닫혀도 즉시 재게시
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -189,17 +221,20 @@ class SensorMonitorService : Service() {
             .build()
 
     private fun updateMonitoringNotification(text: String) {
+        lastMonitoringText = text
         getSystemService(NotificationManager::class.java)
             .notify(NOTIF_ID_MONITORING, buildMonitoringNotification(text))
     }
 
     private fun showAlertNotification(message: String) {
+        lastAlertMessage = message
         val notification = NotificationCompat.Builder(this, CHANNEL_ALERT)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle("⚠️ 센서 임계값 초과!")
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setContentIntent(mainPendingIntent())
+            .setDeleteIntent(repostAlertPendingIntent())     // 닫혀도 즉시 재게시
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
