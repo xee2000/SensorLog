@@ -7,7 +7,7 @@
     android:orientation="vertical"
     android:background="@color/background_gray">
 
-    <!-- ── 상태 배너 (Toolbar와 이어지는 파란 블록) ── -->
+    <!-- ── 상태 배너 ── -->
     <LinearLayout
         android:id="@+id/layout_status_banner"
         android:layout_width="match_parent"
@@ -17,8 +17,8 @@
         android:gravity="center_vertical"
         android:paddingStart="20dp"
         android:paddingEnd="16dp"
-        android:paddingTop="20dp"
-        android:paddingBottom="28dp">
+        android:paddingTop="14dp"
+        android:paddingBottom="20dp">
 
         <LinearLayout
             android:layout_width="0dp"
@@ -31,7 +31,7 @@
                 android:layout_height="wrap_content"
                 android:text="현재 상태"
                 android:textColor="#B3FFFFFF"
-                android:textSize="13sp" />
+                android:textSize="12sp" />
 
             <TextView
                 android:id="@+id/tv_status_value"
@@ -39,9 +39,9 @@
                 android:layout_height="wrap_content"
                 android:text="데이터 로딩 중..."
                 android:textColor="@color/white"
-                android:textSize="26sp"
+                android:textSize="22sp"
                 android:textStyle="bold"
-                android:layout_marginTop="4dp" />
+                android:layout_marginTop="2dp" />
 
             <TextView
                 android:id="@+id/tv_status_desc"
@@ -49,18 +49,17 @@
                 android:layout_height="wrap_content"
                 android:text="센서가 실시간으로 데이터를 수신 중입니다."
                 android:textColor="#B3FFFFFF"
-                android:textSize="12sp"
-                android:layout_marginTop="4dp" />
+                android:textSize="11sp"
+                android:layout_marginTop="2dp" />
 
         </LinearLayout>
 
-        <!-- 장식용 파형 -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="〜〜"
             android:textColor="#FFFFFF"
-            android:textSize="40sp"
+            android:textSize="36sp"
             android:alpha="0.25" />
 
     </LinearLayout>
@@ -85,443 +84,435 @@
         android:textSize="14sp"
         android:visibility="gone" />
 
-    <!-- ── 데이터 영역 (스크롤) ── -->
+    <!-- ── 데이터 영역: 두 카드가 남은 공간을 균등 분할 ── -->
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipe_refresh"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <ScrollView
+        <!-- ScrollView 없이 LinearLayout 직접 → 화면에 꽉 채움 -->
+        <LinearLayout
+            android:id="@+id/group_data"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:fillViewport="true">
+            android:orientation="vertical"
+            android:padding="10dp"
+            android:paddingTop="6dp"
+            android:visibility="gone">
 
+            <!-- 센서 ID + 갱신 시간 (한 줄, 작게) -->
             <LinearLayout
-                android:id="@+id/group_data"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp"
-                android:paddingTop="12dp"
-                android:visibility="gone">
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingBottom="6dp">
 
-                <!-- 센서 ID + 갱신 시간 -->
-                <LinearLayout
-                    android:layout_width="match_parent"
+                <TextView
+                    android:id="@+id/tv_sensor_id"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:paddingBottom="8dp">
+                    android:layout_weight="1"
+                    android:text="센서 ID: -"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
 
-                    <TextView
-                        android:id="@+id/tv_sensor_id"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="센서 ID: -"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="13sp" />
-
-                    <TextView
-                        android:id="@+id/tv_last_updated"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="갱신: -"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="11sp" />
-
-                </LinearLayout>
-
-                <!-- ──────── 온도 카드 ──────── -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
+                <TextView
+                    android:id="@+id/tv_last_updated"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="14dp"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="3dp"
-                    app:cardBackgroundColor="@color/white">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
-
-                        <!-- 초록 왼쪽 강조선 -->
-                        <View
-                            android:id="@+id/accent_temp"
-                            android:layout_width="5dp"
-                            android:layout_height="match_parent"
-                            android:background="@color/status_ok" />
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:padding="16dp">
-
-                            <!-- 아이콘 + "온도" 라벨 -->
-                            <LinearLayout
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:orientation="horizontal"
-                                android:gravity="center_vertical">
-
-                                <LinearLayout
-                                    android:layout_width="48dp"
-                                    android:layout_height="48dp"
-                                    android:background="@drawable/bg_icon_temp"
-                                    android:gravity="center">
-                                    <TextView
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:text="🌡"
-                                        android:textSize="24sp" />
-                                </LinearLayout>
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="온도"
-                                    android:textSize="18sp"
-                                    android:textStyle="bold"
-                                    android:textColor="@color/text_primary"
-                                    android:layout_marginStart="12dp" />
-
-                            </LinearLayout>
-
-                            <!-- 온도 수치 + 단위 -->
-                            <LinearLayout
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:orientation="horizontal"
-                                android:gravity="bottom"
-                                android:layout_marginTop="8dp">
-
-                                <TextView
-                                    android:id="@+id/tv_temperature_value"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="--"
-                                    android:textSize="56sp"
-                                    android:textStyle="bold"
-                                    android:textColor="@color/text_primary" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="°C"
-                                    android:textSize="22sp"
-                                    android:textStyle="bold"
-                                    android:textColor="@color/text_secondary"
-                                    android:layout_marginStart="4dp"
-                                    android:layout_marginBottom="10dp" />
-
-                            </LinearLayout>
-
-                            <!-- 범위 + 슬라이더 섹션 -->
-                            <LinearLayout
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:orientation="vertical"
-                                android:background="@drawable/bg_range_card"
-                                android:padding="12dp"
-                                android:layout_marginTop="10dp">
-
-                                <LinearLayout
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:orientation="horizontal"
-                                    android:gravity="center_vertical">
-
-                                    <TextView
-                                        android:id="@+id/tv_temp_range"
-                                        android:layout_width="0dp"
-                                        android:layout_height="wrap_content"
-                                        android:layout_weight="1"
-                                        android:text="⚙ 범위: -- ~ --°C"
-                                        android:textSize="12sp"
-                                        android:textColor="@color/text_secondary" />
-
-                                    <TextView
-                                        android:id="@+id/tv_temp_badge"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:text="정상"
-                                        android:textSize="11sp"
-                                        android:textColor="@color/white"
-                                        android:textStyle="bold"
-                                        android:background="@drawable/bg_status_badge"
-                                        android:paddingStart="10dp"
-                                        android:paddingEnd="10dp"
-                                        android:paddingTop="4dp"
-                                        android:paddingBottom="4dp" />
-
-                                </LinearLayout>
-
-                                <!-- ↓ 최솟값 기준 여유 -->
-                                <LinearLayout
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:orientation="horizontal"
-                                    android:gravity="center_vertical"
-                                    android:layout_marginTop="10dp">
-
-                                    <TextView
-                                        android:layout_width="20dp"
-                                        android:layout_height="wrap_content"
-                                        android:text="↓"
-                                        android:textColor="#2196F3"
-                                        android:textSize="14sp"
-                                        android:gravity="center" />
-
-                                    <SeekBar
-                                        android:id="@+id/seek_temp_min"
-                                        android:layout_width="0dp"
-                                        android:layout_height="wrap_content"
-                                        android:layout_weight="1"
-                                        android:max="100"
-                                        android:progress="0"
-                                        android:clickable="false"
-                                        android:focusable="false"
-                                        android:progressTint="#2196F3"
-                                        android:thumbTint="#FFFFFF" />
-
-                                </LinearLayout>
-
-                                <!-- ↑ 최댓값 기준 여유 -->
-                                <LinearLayout
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:orientation="horizontal"
-                                    android:gravity="center_vertical"
-                                    android:layout_marginTop="4dp">
-
-                                    <TextView
-                                        android:layout_width="20dp"
-                                        android:layout_height="wrap_content"
-                                        android:text="↑"
-                                        android:textColor="#F44336"
-                                        android:textSize="14sp"
-                                        android:gravity="center" />
-
-                                    <SeekBar
-                                        android:id="@+id/seek_temp_max"
-                                        android:layout_width="0dp"
-                                        android:layout_height="wrap_content"
-                                        android:layout_weight="1"
-                                        android:max="100"
-                                        android:progress="0"
-                                        android:clickable="false"
-                                        android:focusable="false"
-                                        android:progressTint="#F44336"
-                                        android:thumbTint="#FFFFFF" />
-
-                                </LinearLayout>
-
-                            </LinearLayout>
-
-                        </LinearLayout>
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- ──────── 습도 카드 ──────── -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="3dp"
-                    app:cardBackgroundColor="@color/white">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
-
-                        <!-- 초록 왼쪽 강조선 -->
-                        <View
-                            android:id="@+id/accent_hum"
-                            android:layout_width="5dp"
-                            android:layout_height="match_parent"
-                            android:background="@color/status_ok" />
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:padding="16dp">
-
-                            <!-- 아이콘 + "습도" 라벨 -->
-                            <LinearLayout
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:orientation="horizontal"
-                                android:gravity="center_vertical">
-
-                                <LinearLayout
-                                    android:layout_width="48dp"
-                                    android:layout_height="48dp"
-                                    android:background="@drawable/bg_icon_hum"
-                                    android:gravity="center">
-                                    <TextView
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:text="💧"
-                                        android:textSize="24sp" />
-                                </LinearLayout>
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="습도"
-                                    android:textSize="18sp"
-                                    android:textStyle="bold"
-                                    android:textColor="@color/text_primary"
-                                    android:layout_marginStart="12dp" />
-
-                            </LinearLayout>
-
-                            <!-- 습도 수치 + 단위 -->
-                            <LinearLayout
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:orientation="horizontal"
-                                android:gravity="bottom"
-                                android:layout_marginTop="8dp">
-
-                                <TextView
-                                    android:id="@+id/tv_humidity_value"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="--"
-                                    android:textSize="56sp"
-                                    android:textStyle="bold"
-                                    android:textColor="@color/text_primary" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="%"
-                                    android:textSize="22sp"
-                                    android:textStyle="bold"
-                                    android:textColor="@color/text_secondary"
-                                    android:layout_marginStart="4dp"
-                                    android:layout_marginBottom="10dp" />
-
-                            </LinearLayout>
-
-                            <!-- 범위 + 슬라이더 섹션 -->
-                            <LinearLayout
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:orientation="vertical"
-                                android:background="@drawable/bg_range_card"
-                                android:padding="12dp"
-                                android:layout_marginTop="10dp">
-
-                                <LinearLayout
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:orientation="horizontal"
-                                    android:gravity="center_vertical">
-
-                                    <TextView
-                                        android:id="@+id/tv_hum_range"
-                                        android:layout_width="0dp"
-                                        android:layout_height="wrap_content"
-                                        android:layout_weight="1"
-                                        android:text="⚙ 범위: -- ~ --%"
-                                        android:textSize="12sp"
-                                        android:textColor="@color/text_secondary" />
-
-                                    <TextView
-                                        android:id="@+id/tv_hum_badge"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:text="정상"
-                                        android:textSize="11sp"
-                                        android:textColor="@color/white"
-                                        android:textStyle="bold"
-                                        android:background="@drawable/bg_status_badge"
-                                        android:paddingStart="10dp"
-                                        android:paddingEnd="10dp"
-                                        android:paddingTop="4dp"
-                                        android:paddingBottom="4dp" />
-
-                                </LinearLayout>
-
-                                <!-- ↓ -->
-                                <LinearLayout
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:orientation="horizontal"
-                                    android:gravity="center_vertical"
-                                    android:layout_marginTop="10dp">
-
-                                    <TextView
-                                        android:layout_width="20dp"
-                                        android:layout_height="wrap_content"
-                                        android:text="↓"
-                                        android:textColor="#2196F3"
-                                        android:textSize="14sp"
-                                        android:gravity="center" />
-
-                                    <SeekBar
-                                        android:id="@+id/seek_hum_min"
-                                        android:layout_width="0dp"
-                                        android:layout_height="wrap_content"
-                                        android:layout_weight="1"
-                                        android:max="100"
-                                        android:progress="0"
-                                        android:clickable="false"
-                                        android:focusable="false"
-                                        android:progressTint="#2196F3"
-                                        android:thumbTint="#FFFFFF" />
-
-                                </LinearLayout>
-
-                                <!-- ↑ -->
-                                <LinearLayout
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:orientation="horizontal"
-                                    android:gravity="center_vertical"
-                                    android:layout_marginTop="4dp">
-
-                                    <TextView
-                                        android:layout_width="20dp"
-                                        android:layout_height="wrap_content"
-                                        android:text="↑"
-                                        android:textColor="#F44336"
-                                        android:textSize="14sp"
-                                        android:gravity="center" />
-
-                                    <SeekBar
-                                        android:id="@+id/seek_hum_max"
-                                        android:layout_width="0dp"
-                                        android:layout_height="wrap_content"
-                                        android:layout_weight="1"
-                                        android:max="100"
-                                        android:progress="0"
-                                        android:clickable="false"
-                                        android:focusable="false"
-                                        android:progressTint="#F44336"
-                                        android:thumbTint="#FFFFFF" />
-
-                                </LinearLayout>
-
-                            </LinearLayout>
-
-                        </LinearLayout>
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
+                    android:text="갱신: -"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp" />
 
             </LinearLayout>
-        </ScrollView>
 
+            <!-- ──────── 온도 카드 (weight=1 → 절반 높이) ──────── -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:layout_marginBottom="6dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="3dp"
+                app:cardBackgroundColor="@color/white">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:id="@+id/accent_temp"
+                        android:layout_width="5dp"
+                        android:layout_height="match_parent"
+                        android:background="@color/status_ok" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:padding="12dp"
+                        android:gravity="center_vertical">
+
+                        <!-- 아이콘 + 라벨 -->
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <LinearLayout
+                                android:layout_width="36dp"
+                                android:layout_height="36dp"
+                                android:background="@drawable/bg_icon_temp"
+                                android:gravity="center">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="🌡"
+                                    android:textSize="18sp" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="온도"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text_primary"
+                                android:layout_marginStart="10dp" />
+
+                        </LinearLayout>
+
+                        <!-- 값 + 단위 -->
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="bottom"
+                            android:layout_marginTop="4dp">
+
+                            <TextView
+                                android:id="@+id/tv_temperature_value"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--"
+                                android:textSize="44sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text_primary" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="°C"
+                                android:textSize="18sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text_secondary"
+                                android:layout_marginStart="3dp"
+                                android:layout_marginBottom="8dp" />
+
+                        </LinearLayout>
+
+                        <!-- 범위 섹션 -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:background="@drawable/bg_range_card"
+                            android:padding="10dp"
+                            android:layout_marginTop="6dp">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical">
+
+                                <TextView
+                                    android:id="@+id/tv_temp_range"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:text="⚙ 범위: -- ~ --°C"
+                                    android:textSize="11sp"
+                                    android:textColor="@color/text_secondary" />
+
+                                <TextView
+                                    android:id="@+id/tv_temp_badge"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="정상"
+                                    android:textSize="11sp"
+                                    android:textColor="@color/white"
+                                    android:textStyle="bold"
+                                    android:background="@drawable/bg_status_badge"
+                                    android:paddingStart="8dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingTop="3dp"
+                                    android:paddingBottom="3dp" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:layout_marginTop="4dp">
+
+                                <TextView
+                                    android:layout_width="18dp"
+                                    android:layout_height="wrap_content"
+                                    android:text="↓"
+                                    android:textColor="#2196F3"
+                                    android:textSize="13sp"
+                                    android:gravity="center" />
+
+                                <SeekBar
+                                    android:id="@+id/seek_temp_min"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:max="100"
+                                    android:progress="0"
+                                    android:clickable="false"
+                                    android:focusable="false"
+                                    android:progressTint="#2196F3"
+                                    android:thumbTint="#FFFFFF" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:layout_marginTop="0dp">
+
+                                <TextView
+                                    android:layout_width="18dp"
+                                    android:layout_height="wrap_content"
+                                    android:text="↑"
+                                    android:textColor="#F44336"
+                                    android:textSize="13sp"
+                                    android:gravity="center" />
+
+                                <SeekBar
+                                    android:id="@+id/seek_temp_max"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:max="100"
+                                    android:progress="0"
+                                    android:clickable="false"
+                                    android:focusable="false"
+                                    android:progressTint="#F44336"
+                                    android:thumbTint="#FFFFFF" />
+
+                            </LinearLayout>
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ──────── 습도 카드 (weight=1 → 절반 높이) ──────── -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:layout_marginBottom="4dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="3dp"
+                app:cardBackgroundColor="@color/white">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:id="@+id/accent_hum"
+                        android:layout_width="5dp"
+                        android:layout_height="match_parent"
+                        android:background="@color/status_ok" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:padding="12dp"
+                        android:gravity="center_vertical">
+
+                        <!-- 아이콘 + 라벨 -->
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <LinearLayout
+                                android:layout_width="36dp"
+                                android:layout_height="36dp"
+                                android:background="@drawable/bg_icon_hum"
+                                android:gravity="center">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="💧"
+                                    android:textSize="18sp" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="습도"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text_primary"
+                                android:layout_marginStart="10dp" />
+
+                        </LinearLayout>
+
+                        <!-- 값 + 단위 -->
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="bottom"
+                            android:layout_marginTop="4dp">
+
+                            <TextView
+                                android:id="@+id/tv_humidity_value"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--"
+                                android:textSize="44sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text_primary" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="%"
+                                android:textSize="18sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text_secondary"
+                                android:layout_marginStart="3dp"
+                                android:layout_marginBottom="8dp" />
+
+                        </LinearLayout>
+
+                        <!-- 범위 섹션 -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:background="@drawable/bg_range_card"
+                            android:padding="10dp"
+                            android:layout_marginTop="6dp">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical">
+
+                                <TextView
+                                    android:id="@+id/tv_hum_range"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:text="⚙ 범위: -- ~ --%"
+                                    android:textSize="11sp"
+                                    android:textColor="@color/text_secondary" />
+
+                                <TextView
+                                    android:id="@+id/tv_hum_badge"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="정상"
+                                    android:textSize="11sp"
+                                    android:textColor="@color/white"
+                                    android:textStyle="bold"
+                                    android:background="@drawable/bg_status_badge"
+                                    android:paddingStart="8dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingTop="3dp"
+                                    android:paddingBottom="3dp" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:layout_marginTop="4dp">
+
+                                <TextView
+                                    android:layout_width="18dp"
+                                    android:layout_height="wrap_content"
+                                    android:text="↓"
+                                    android:textColor="#2196F3"
+                                    android:textSize="13sp"
+                                    android:gravity="center" />
+
+                                <SeekBar
+                                    android:id="@+id/seek_hum_min"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:max="100"
+                                    android:progress="0"
+                                    android:clickable="false"
+                                    android:focusable="false"
+                                    android:progressTint="#2196F3"
+                                    android:thumbTint="#FFFFFF" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:layout_marginTop="0dp">
+
+                                <TextView
+                                    android:layout_width="18dp"
+                                    android:layout_height="wrap_content"
+                                    android:text="↑"
+                                    android:textColor="#F44336"
+                                    android:textSize="13sp"
+                                    android:gravity="center" />
+
+                                <SeekBar
+                                    android:id="@+id/seek_hum_max"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:max="100"
+                                    android:progress="0"
+                                    android:clickable="false"
+                                    android:focusable="false"
+                                    android:progressTint="#F44336"
+                                    android:thumbTint="#FFFFFF" />
+
+                            </LinearLayout>
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
 </LinearLayout>
