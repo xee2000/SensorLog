@@ -82,7 +82,10 @@ class SensorMonitorService : Service() {
                     NOTIF_ID_MONITORING,
                     buildMonitoringNotification(lastMonitoringText)
                 )
-                startMonitoring()
+                // 이미 폴링 중이면 재시작하지 않음 (앱 재진입 시 중복 방지)
+                if (monitorJob?.isActive != true) {
+                    startMonitoring()
+                }
             }
             ACTION_STOP -> {
                 stopVibration()
