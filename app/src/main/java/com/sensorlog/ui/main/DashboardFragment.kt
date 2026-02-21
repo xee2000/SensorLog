@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import com.sensorlog.R
 import com.sensorlog.databinding.FragmentLiveDataBinding
 import com.sensorlog.model.SensorReading
 import com.sensorlog.model.UiState
@@ -15,10 +16,11 @@ import com.sensorlog.util.ThresholdPreferences
 import com.sensorlog.viewmodel.SensorViewModel
 
 /**
- * 화면 2: 현재 최신 센서 값 표시
- * - 온도 / 습도 카드 (큰 숫자)
- * - 임계값 대비 상태 표시 (정상 / 경고)
- * - 수동 새로고침 버튼
+ * 메인 화면: 현재 최신 센서 값 표시
+ * - 상태 배너 (파란, 모두정상 / 경보발생)
+ * - 온도 / 습도 카드 (큰 숫자 + 좌측 강조선)
+ * - 범위 대비 SeekBar 시각화 + 상태 배지
+ * - SwipeRefresh + 툴바 새로고침
  */
 class DashboardFragment : Fragment() {
 
@@ -40,7 +42,6 @@ class DashboardFragment : Fragment() {
 
         observeViewModel()
 
-        binding.btnRefresh.setOnClickListener { fetchLatest() }
         binding.swipeRefresh.setOnRefreshListener {
             fetchLatest()
             binding.swipeRefresh.isRefreshing = false
@@ -51,7 +52,6 @@ class DashboardFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // 탭 전환 시에도 최신값 갱신
         fetchLatest()
     }
 
@@ -81,12 +81,14 @@ class DashboardFragment : Fragment() {
                     binding.groupData.visibility   = View.GONE
                     binding.tvError.visibility     = View.VISIBLE
                     binding.tvError.text           = "데이터가 없습니다."
+                    updateBannerError()
                 }
                 is UiState.Error -> {
                     binding.progressBar.visibility = View.GONE
                     binding.groupData.visibility   = View.GONE
                     binding.tvError.visibility     = View.VISIBLE
                     binding.tvError.text           = state.message
+                    updateBannerError()
                 }
             }
         }
@@ -98,27 +100,78 @@ class DashboardFragment : Fragment() {
         val humMin  = prefs.getHumidityMin().toDouble()
         val humMax  = prefs.getHumidityMax().toDouble()
 
-        // 온도 카드
-        binding.tvTemperatureValue.text = "%.1f°C".format(data.temperature)
         val tempOk = data.temperature in tempMin..tempMax
-        binding.tvTemperatureStatus.text = if (tempOk) "정상" else "⚠️ 임계값 초과"
-        binding.tvTemperatureStatus.setTextColor(
-            if (tempOk) Color.parseColor("#4CAF50") else Color.parseColor("#F44336")
-        )
-        binding.tvTemperatureRange.text = "범위: %.1f ~ %.1f°C".format(tempMin, tempMax)
+        val humOk  = data.humidity in humMin..humMax
 
-        // 습도 카드
-        binding.tvHumidityValue.text = "%.1f%%".format(data.humidity)
-        val humOk = data.humidity in humMin..humMax
-        binding.tvHumidityStatus.text = if (humOk) "정상" else "⚠️ 임계값 초과"
-        binding.tvHumidityStatus.setTextColor(
-            if (humOk) Color.parseColor("#4CAF50") else Color.parseColor("#F44336")
-        )
-        binding.tvHumidityRange.text = "범위: %.1f ~ %.1f%%".format(humMin, humMax)
+        // ── 상태 배너 ──
+        updateBanner(tempOk, humOk)
 
-        // 공통
-        binding.tvSensorId.text   = "센서 ID: ${data.sensorId}"
-        binding.tvLastUpdated.text = "마지막 갱신: ${DateUtils.formatTimestamp(data.time)}"
+        // ── 온도 카드 ──
+        binding.tvTemperatureValue.text = "%.1f".format(data.temperature)
+        binding.tvTempRange.text = "⚙ 범위: %.0f ~ %.0f°C".format(tempMin, tempMax)
+        updateBadge(binding.tvTempBadge, tempOk)
+        updateAccent(binding.accentTemp, tempOk)
+        updateSeekBars(
+            binding.seekTempMin, binding.seekTempMax,
+            data.temperature, tempMin, tempMax
+        )
+
+        // ── 습도 카드 ──
+        binding.tvHumidityValue.text = "%.1f".format(data.humidity)
+        binding.tvHumRange.text = "⚙ 범위: %.0f ~ %.0f%%".format(humMin, humMax)
+        updateBadge(binding.tvHumBadge, humOk)
+        updateAccent(binding.accentHum, humOk)
+        updateSeekBars(
+            binding.seekHumMin, binding.seekHumMax,
+            data.humidity, humMin, humMax
+        )
+
+        // ── 공통 ──
+        binding.tvSensorId.text    = "센서 ID: ${data.sensorId}"
+        binding.tvLastUpdated.text = DateUtils.formatTimestamp(data.time)
+    }
+
+    private fun updateBanner(tempOk: Boolean, humOk: Boolean) {
+        val allOk = tempOk && humOk
+        binding.tvStatusValue.text = if (allOk) "모두 정상" else "경보 발생"
+        binding.tvStatusDesc.text = if (allOk)
+            "센서가 실시간으로 데이터를 수신 중입니다."
+        else
+            "임계값을 벗어난 센서가 있습니다. 확인하세요."
+    }
+
+    private fun updateBannerError() {
+        binding.tvStatusValue.text = "연결 오류"
+        binding.tvStatusDesc.text  = "서버에 연결할 수 없습니다."
+    }
+
+    private fun updateBadge(badge: android.widget.TextView, isOk: Boolean) {
+        badge.text = if (isOk) "정상" else "초과"
+        badge.setBackgroundResource(
+            if (isOk) R.drawable.bg_status_badge else R.drawable.bg_badge_alert
+        )
+    }
+
+    private fun updateAccent(accentView: View, isOk: Boolean) {
+        accentView.setBackgroundColor(
+            if (isOk) Color.parseColor("#4CAF50") else Color.parseColor("#F44336")
+        )
+    }
+
+    /**
+     * ↓ seekMin: 현재값이 최솟값보다 얼마나 위에 있는지 (0%=최솟값, 100%=최댓값)
+     * ↑ seekMax: 현재값이 최댓값보다 얼마나 아래에 있는지 (0%=최댓값, 100%=최솟값)
+     */
+    private fun updateSeekBars(
+        seekMin: android.widget.SeekBar,
+        seekMax: android.widget.SeekBar,
+        value: Double, min: Double, max: Double
+    ) {
+        val range = (max - min).coerceAtLeast(0.001)
+        val minPct = ((value - min) / range * 100).coerceIn(0.0, 100.0).toInt()
+        val maxPct = ((max - value) / range * 100).coerceIn(0.0, 100.0).toInt()
+        seekMin.progress = minPct
+        seekMax.progress = maxPct
     }
 
     override fun onDestroyView() {
