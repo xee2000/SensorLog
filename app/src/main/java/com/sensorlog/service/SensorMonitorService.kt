@@ -184,6 +184,8 @@ class SensorMonitorService : Service() {
             .setContentIntent(mainPendingIntent())
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
 
     private fun updateMonitoringNotification(text: String) {
@@ -199,6 +201,8 @@ class SensorMonitorService : Service() {
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setContentIntent(mainPendingIntent())
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setOngoing(true)
             .setAutoCancel(false)
             .build()
 

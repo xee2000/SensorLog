@@ -103,6 +103,8 @@ class SensorListFragment : Fragment() {
         binding.btnEndDate.text   = DateUtils.toDisplayDate(endDate)
     }
 
+    fun refresh() = search()
+
     private fun search() {
         val sensorId = binding.etSensorId.text.toString().trim()
         viewModel.loadSensorData(

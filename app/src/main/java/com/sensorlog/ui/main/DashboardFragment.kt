@@ -55,6 +55,8 @@ class DashboardFragment : Fragment() {
         fetchLatest()
     }
 
+    fun refresh() = fetchLatest()
+
     private fun fetchLatest() {
         val sensorId = prefs.getSensorId().ifBlank { "S001" }
         viewModel.loadLatestData(sensorId)
