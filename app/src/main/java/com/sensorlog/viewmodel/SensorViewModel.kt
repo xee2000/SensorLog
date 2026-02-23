@@ -7,7 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.sensorlog.model.SensorReading
 import com.sensorlog.model.UiState
 import com.sensorlog.repository.SensorRepository
-import com.sensorlog.util.DateUtils
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
 class SensorViewModel : ViewModel() {
@@ -18,15 +18,12 @@ class SensorViewModel : ViewModel() {
     private val _sensorDataLog = MutableLiveData<UiState<List<SensorReading>>>()
     val sensorDataLog: LiveData<UiState<List<SensorReading>>> = _sensorDataLog
 
-    // --- 최신값 화면 ---
-    private val _latestData = MutableLiveData<UiState<SensorReading>>()
-    val latestData: LiveData<UiState<SensorReading>> = _latestData
+    // --- 전체 센서 최신값 (대시보드) Map<sensorId, UiState> ---
+    private val _allLatestData = MutableLiveData<Map<String, UiState<SensorReading>>>()
+    val allLatestData: LiveData<Map<String, UiState<SensorReading>>> = _allLatestData
 
     /**
      * 기간별 센서 데이터 조회
-     * @param sensorId 센서 ID
-     * @param startIso ISO 8601 시작시각 (예: 2026-02-01T00:00:00)
-     * @param endIso   ISO 8601 종료시각 (예: 2026-02-28T23:59:59)
      */
     fun loadSensorData(sensorId: String, startIso: String, endIso: String) {
         if (sensorId.isBlank()) {
@@ -40,17 +37,16 @@ class SensorViewModel : ViewModel() {
     }
 
     /**
-     * 최신 센서 데이터 조회
-     * @param sensorId 센서 ID (ThresholdPreferences에서 가져온 값)
+     * 여러 센서의 최신값 병렬 조회 (대시보드용)
      */
-    fun loadLatestData(sensorId: String) {
-        if (sensorId.isBlank()) {
-            _latestData.value = UiState.Error("설정 탭에서 센서 ID를 먼저 입력해 주세요.")
-            return
-        }
+    fun loadAllLatestData(sensorIds: List<String>) {
+        if (sensorIds.isEmpty()) return
         viewModelScope.launch {
-            _latestData.value = UiState.Loading
-            _latestData.value = repository.getLatestSensorData(sensorId)
+            // 모든 센서 로딩 상태로 먼저 표시
+            _allLatestData.value = sensorIds.associateWith { UiState.Loading }
+            // 병렬 API 호출
+            val deferred = sensorIds.map { id -> id to async { repository.getLatestSensorData(id) } }
+            _allLatestData.value = deferred.associate { (id, d) -> id to d.await() }
         }
     }
 }

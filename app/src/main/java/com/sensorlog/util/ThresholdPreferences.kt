@@ -5,6 +5,8 @@ import android.content.SharedPreferences
 
 /**
  * 임계값 설정을 SharedPreferences에 저장/조회하는 헬퍼
+ * - 여러 센서 ID 관리 (KEY_SENSOR_IDS: 콤마 구분)
+ * - 센서별 임계값: "temp_min_{sensorId}" 형태의 키
  */
 class ThresholdPreferences(context: Context) {
 
@@ -12,35 +14,69 @@ class ThresholdPreferences(context: Context) {
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     companion object {
-        private const val PREFS_NAME = "threshold_prefs"
-        const val KEY_SENSOR_ID     = "sensor_id"
-        const val KEY_TEMP_MIN      = "temp_min"
-        const val KEY_TEMP_MAX      = "temp_max"
-        const val KEY_HUMIDITY_MIN  = "humidity_min"
-        const val KEY_HUMIDITY_MAX  = "humidity_max"
-        const val KEY_MONITORING    = "monitoring_enabled"
+        private const val PREFS_NAME      = "threshold_prefs"
+        private const val KEY_SENSOR_IDS  = "sensor_ids"
+        const val KEY_MONITORING          = "monitoring_enabled"
 
-        // 기본값
-        const val DEFAULT_TEMP_MIN: Float     = 0f
-        const val DEFAULT_TEMP_MAX: Float     = 40f
-        const val DEFAULT_HUMIDITY_MIN: Float = 20f
-        const val DEFAULT_HUMIDITY_MAX: Float = 80f
+        const val DEFAULT_TEMP_MIN: Float = 0f
+        const val DEFAULT_TEMP_MAX: Float = 40f
+        const val DEFAULT_HUM_MIN: Float  = 20f
+        const val DEFAULT_HUM_MAX: Float  = 80f
     }
 
-    fun getSensorId(): String = prefs.getString(KEY_SENSOR_ID, "") ?: ""
-    fun setSensorId(v: String) = prefs.edit().putString(KEY_SENSOR_ID, v).apply()
+    // ── 센서 ID 목록 ───────────────────────────────────────────────────────────
 
-    fun getTempMin(): Float = prefs.getFloat(KEY_TEMP_MIN, DEFAULT_TEMP_MIN)
-    fun setTempMin(v: Float) = prefs.edit().putFloat(KEY_TEMP_MIN, v).apply()
+    fun getSensorIds(): List<String> {
+        if (prefs.contains(KEY_SENSOR_IDS)) {
+            val raw = prefs.getString(KEY_SENSOR_IDS, "") ?: ""
+            return raw.split(",").map { it.trim() }.filter { it.isNotBlank() }
+        }
+        // 구버전 단일 sensor_id 마이그레이션
+        val legacy = prefs.getString("sensor_id", "") ?: ""
+        return if (legacy.isNotBlank()) listOf(legacy) else listOf("S001")
+    }
 
-    fun getTempMax(): Float = prefs.getFloat(KEY_TEMP_MAX, DEFAULT_TEMP_MAX)
-    fun setTempMax(v: Float) = prefs.edit().putFloat(KEY_TEMP_MAX, v).apply()
+    fun setSensorIds(ids: List<String>) =
+        prefs.edit().putString(KEY_SENSOR_IDS, ids.joinToString(",")).apply()
 
-    fun getHumidityMin(): Float = prefs.getFloat(KEY_HUMIDITY_MIN, DEFAULT_HUMIDITY_MIN)
-    fun setHumidityMin(v: Float) = prefs.edit().putFloat(KEY_HUMIDITY_MIN, v).apply()
+    fun addSensorId(id: String) {
+        val ids = getSensorIds().toMutableList()
+        if (!ids.contains(id)) {
+            ids.add(id)
+            setSensorIds(ids)
+        }
+    }
 
-    fun getHumidityMax(): Float = prefs.getFloat(KEY_HUMIDITY_MAX, DEFAULT_HUMIDITY_MAX)
-    fun setHumidityMax(v: Float) = prefs.edit().putFloat(KEY_HUMIDITY_MAX, v).apply()
+    fun removeSensorId(id: String) {
+        setSensorIds(getSensorIds().filter { it != id })
+    }
+
+    /** 첫 번째 센서 ID (서비스/하위 호환) */
+    fun getSensorId(): String = getSensorIds().firstOrNull() ?: "S001"
+
+    // ── 센서별 임계값 ──────────────────────────────────────────────────────────
+
+    fun getTempMin(sensorId: String): Float =
+        prefs.getFloat("temp_min_$sensorId", DEFAULT_TEMP_MIN)
+    fun setTempMin(sensorId: String, v: Float) =
+        prefs.edit().putFloat("temp_min_$sensorId", v).apply()
+
+    fun getTempMax(sensorId: String): Float =
+        prefs.getFloat("temp_max_$sensorId", DEFAULT_TEMP_MAX)
+    fun setTempMax(sensorId: String, v: Float) =
+        prefs.edit().putFloat("temp_max_$sensorId", v).apply()
+
+    fun getHumidityMin(sensorId: String): Float =
+        prefs.getFloat("hum_min_$sensorId", DEFAULT_HUM_MIN)
+    fun setHumidityMin(sensorId: String, v: Float) =
+        prefs.edit().putFloat("hum_min_$sensorId", v).apply()
+
+    fun getHumidityMax(sensorId: String): Float =
+        prefs.getFloat("hum_max_$sensorId", DEFAULT_HUM_MAX)
+    fun setHumidityMax(sensorId: String, v: Float) =
+        prefs.edit().putFloat("hum_max_$sensorId", v).apply()
+
+    // ── 모니터링 상태 ──────────────────────────────────────────────────────────
 
     fun isMonitoringEnabled(): Boolean = prefs.getBoolean(KEY_MONITORING, false)
     fun setMonitoringEnabled(v: Boolean) = prefs.edit().putBoolean(KEY_MONITORING, v).apply()

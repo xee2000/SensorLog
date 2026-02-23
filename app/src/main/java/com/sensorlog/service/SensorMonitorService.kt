@@ -128,42 +128,52 @@ class SensorMonitorService : Service() {
     }
 
     private suspend fun checkSensorValues() {
-        val sensorId = prefs.getSensorId()
-        if (sensorId.isBlank()) return
+        val sensorIds = prefs.getSensorIds()
+        if (sensorIds.isEmpty()) return
 
-        try {
-            val response = RetrofitClient.sensorApiService.getLatestSensorData(sensorId)
-            if (!response.isSuccessful) return
-            val data = response.body() ?: return
+        val allAlerts  = mutableListOf<String>()
+        val statusParts = mutableListOf<String>()
 
-            val temp     = data.temperature
-            val humidity = data.humidity
+        for (sensorId in sensorIds) {
+            try {
+                val response = RetrofitClient.sensorApiService.getLatestSensorData(sensorId)
+                if (!response.isSuccessful) continue
+                val data = response.body() ?: continue
 
-            val tempMin = prefs.getTempMin().toDouble()
-            val tempMax = prefs.getTempMax().toDouble()
-            val humMin  = prefs.getHumidityMin().toDouble()
-            val humMax  = prefs.getHumidityMax().toDouble()
+                val temp     = data.temperature
+                val humidity = data.humidity
 
-            val alerts = mutableListOf<String>()
-            if (temp < tempMin || temp > tempMax) {
-                alerts.add("온도 %.1f°C (허용: %.1f ~ %.1f°C)".format(temp, tempMin, tempMax))
+                val tempMin = prefs.getTempMin(sensorId).toDouble()
+                val tempMax = prefs.getTempMax(sensorId).toDouble()
+                val humMin  = prefs.getHumidityMin(sensorId).toDouble()
+                val humMax  = prefs.getHumidityMax(sensorId).toDouble()
+
+                statusParts.add("[$sensorId] %.1f°C / %.1f%%".format(temp, humidity))
+
+                if (temp < tempMin || temp > tempMax) {
+                    allAlerts.add("[$sensorId] 온도 %.1f°C (허용: %.0f~%.0f°C)"
+                        .format(temp, tempMin, tempMax))
+                }
+                if (humidity < humMin || humidity > humMax) {
+                    allAlerts.add("[$sensorId] 습도 %.1f%% (허용: %.0f~%.0f%%)"
+                        .format(humidity, humMin, humMax))
+                }
+            } catch (_: Exception) {
+                // 센서별 네트워크 오류는 조용히 무시
             }
-            if (humidity < humMin || humidity > humMax) {
-                alerts.add("습도 %.1f%% (허용: %.1f ~ %.1f%%)".format(humidity, humMin, humMax))
-            }
+        }
 
-            updateMonitoringNotification("온도: %.1f°C | 습도: %.1f%%".format(temp, humidity))
+        if (statusParts.isNotEmpty()) {
+            updateMonitoringNotification(statusParts.joinToString("  "))
+        }
 
-            if (alerts.isNotEmpty()) {
-                showAlertNotification(alerts.joinToString("\n"))
-                startVibration()
-            } else {
-                lastAlertMessage = null
-                cancelAlertNotification()
-                stopVibration()
-            }
-        } catch (_: Exception) {
-            // 네트워크 오류 시 조용히 무시
+        if (allAlerts.isNotEmpty()) {
+            showAlertNotification(allAlerts.joinToString("\n"))
+            startVibration()
+        } else {
+            lastAlertMessage = null
+            cancelAlertNotification()
+            stopVibration()
         }
     }
 

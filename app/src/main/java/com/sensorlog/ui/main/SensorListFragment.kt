@@ -8,8 +8,10 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.sensorlog.adapter.SensorDataAdapter
 import com.sensorlog.databinding.FragmentSensorLogBinding
+import com.sensorlog.model.SensorReading
 import com.sensorlog.model.UiState
 import com.sensorlog.util.DateUtils
 import com.sensorlog.viewmodel.SensorViewModel
@@ -21,7 +23,7 @@ import java.util.Date
  * - 센서 ID 입력
  * - 시작/종료 날짜 선택 (DatePicker)
  * - 빠른 필터 (오늘 / 3일 / 7일 / 30일)
- * - 결과 리스트 (시각, 온도, 습도)
+ * - 결과 리스트: 30건씩 표시, 스크롤 끝 도달 시 추가 30건
  */
 class SensorListFragment : Fragment() {
 
@@ -33,6 +35,11 @@ class SensorListFragment : Fragment() {
 
     private var startDate: Date = DateUtils.daysAgo(7)
     private var endDate: Date   = DateUtils.todayEnd()
+
+    // 페이징 상태
+    private var fullList: List<SensorReading> = emptyList()
+    private var displayedCount = 0
+    private val PAGE_SIZE = 30
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -47,16 +54,22 @@ class SensorListFragment : Fragment() {
         binding.rvSensorData.layoutManager = LinearLayoutManager(requireContext())
         binding.rvSensorData.adapter = adapter
 
+        // 스크롤 끝 감지 → 다음 페이지 로드
+        binding.rvSensorData.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                if (!recyclerView.canScrollVertically(1) && displayedCount < fullList.size) {
+                    loadNextPage()
+                }
+            }
+        })
+
         updateDateButtons()
         setupListeners()
         observeViewModel()
-
-        // 화면 진입 시 자동 조회
         search()
     }
 
     private fun setupListeners() {
-        // 시작일 DatePicker
         binding.btnStartDate.setOnClickListener {
             val c = Calendar.getInstance().apply { time = startDate }
             DatePickerDialog(
@@ -66,7 +79,6 @@ class SensorListFragment : Fragment() {
             ).show()
         }
 
-        // 종료일 DatePicker
         binding.btnEndDate.setOnClickListener {
             val c = Calendar.getInstance().apply { time = endDate }
             DatePickerDialog(
@@ -76,16 +88,13 @@ class SensorListFragment : Fragment() {
             ).show()
         }
 
-        // 빠른 날짜 필터 칩 — 누르면 날짜 변경 후 즉시 조회
         binding.chipToday.setOnClickListener  { applyQuickRange(0);  search() }
         binding.chip3Days.setOnClickListener  { applyQuickRange(3);  search() }
         binding.chip7Days.setOnClickListener  { applyQuickRange(7);  search() }
         binding.chip30Days.setOnClickListener { applyQuickRange(30); search() }
 
-        // 조회 버튼
         binding.btnSearch.setOnClickListener { search() }
 
-        // SwipeRefresh
         binding.swipeRefresh.setOnRefreshListener {
             search()
             binding.swipeRefresh.isRefreshing = false
@@ -107,11 +116,30 @@ class SensorListFragment : Fragment() {
 
     private fun search() {
         val sensorId = binding.etSensorId.text.toString().trim()
+        fullList = emptyList()
+        displayedCount = 0
+        adapter.submitList(emptyList())
         viewModel.loadSensorData(
-            sensorId  = sensorId,
-            startIso  = DateUtils.toIso(startDate),
-            endIso    = DateUtils.toIso(endDate)
+            sensorId = sensorId,
+            startIso = DateUtils.toIso(startDate),
+            endIso   = DateUtils.toIso(endDate)
         )
+    }
+
+    /** 다음 PAGE_SIZE 건을 어댑터에 추가 표시 */
+    private fun loadNextPage() {
+        if (displayedCount >= fullList.size) return
+        val next = (displayedCount + PAGE_SIZE).coerceAtMost(fullList.size)
+        adapter.submitList(fullList.subList(0, next).toMutableList())
+        displayedCount = next
+        updateCountText()
+    }
+
+    private fun updateCountText() {
+        val total = fullList.size
+        binding.tvTotalCount.text =
+            if (displayedCount >= total) "총 ${total}건"
+            else "총 ${total}건 중 ${displayedCount}건 표시"
     }
 
     private fun observeViewModel() {
@@ -126,13 +154,17 @@ class SensorListFragment : Fragment() {
                     binding.progressBar.visibility = View.GONE
                     binding.tvEmpty.visibility     = View.GONE
                     binding.tvError.visibility     = View.GONE
-                    adapter.submitList(state.data.toMutableList())
-                    binding.tvTotalCount.text = "총 ${state.data.size}건"
+                    // 전체 데이터 저장 후 첫 페이지만 표시
+                    fullList = state.data
+                    displayedCount = 0
+                    loadNextPage()
                 }
                 is UiState.Empty -> {
                     binding.progressBar.visibility = View.GONE
                     binding.tvEmpty.visibility     = View.VISIBLE
                     binding.tvError.visibility     = View.GONE
+                    fullList = emptyList()
+                    displayedCount = 0
                     adapter.submitList(emptyList())
                     binding.tvTotalCount.text = "총 0건"
                 }
