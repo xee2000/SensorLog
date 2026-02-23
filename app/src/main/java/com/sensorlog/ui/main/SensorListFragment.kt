@@ -146,33 +146,37 @@ class SensorListFragment : Fragment() {
         viewModel.sensorDataLog.observe(viewLifecycleOwner) { state ->
             when (state) {
                 is UiState.Loading -> {
-                    binding.progressBar.visibility = View.VISIBLE
-                    binding.tvEmpty.visibility     = View.GONE
-                    binding.tvError.visibility     = View.GONE
+                    binding.progressBar.visibility  = View.VISIBLE
+                    binding.tvEmpty.visibility      = View.GONE
+                    binding.tvError.visibility      = View.GONE
+                    binding.rvSensorData.visibility = View.GONE
                 }
                 is UiState.Success -> {
-                    binding.progressBar.visibility = View.GONE
-                    binding.tvEmpty.visibility     = View.GONE
-                    binding.tvError.visibility     = View.GONE
+                    binding.progressBar.visibility  = View.GONE
+                    binding.tvEmpty.visibility      = View.GONE
+                    binding.tvError.visibility      = View.GONE
+                    binding.rvSensorData.visibility = View.VISIBLE
                     // 전체 데이터 저장 후 첫 페이지만 표시
                     fullList = state.data
                     displayedCount = 0
                     loadNextPage()
                 }
                 is UiState.Empty -> {
-                    binding.progressBar.visibility = View.GONE
-                    binding.tvEmpty.visibility     = View.VISIBLE
-                    binding.tvError.visibility     = View.GONE
+                    binding.progressBar.visibility  = View.GONE
+                    binding.tvEmpty.visibility      = View.VISIBLE
+                    binding.tvError.visibility      = View.GONE
+                    binding.rvSensorData.visibility = View.GONE
                     fullList = emptyList()
                     displayedCount = 0
                     adapter.submitList(emptyList())
                     binding.tvTotalCount.text = "총 0건"
                 }
                 is UiState.Error -> {
-                    binding.progressBar.visibility = View.GONE
-                    binding.tvEmpty.visibility     = View.GONE
-                    binding.tvError.visibility     = View.VISIBLE
-                    binding.tvError.text           = state.message
+                    binding.progressBar.visibility  = View.GONE
+                    binding.tvEmpty.visibility      = View.GONE
+                    binding.tvError.visibility      = View.VISIBLE
+                    binding.rvSensorData.visibility = View.GONE
+                    binding.tvError.text            = state.message
                 }
             }
         }

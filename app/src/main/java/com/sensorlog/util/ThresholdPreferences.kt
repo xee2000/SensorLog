@@ -33,7 +33,7 @@ class ThresholdPreferences(context: Context) {
         }
         // 구버전 단일 sensor_id 마이그레이션
         val legacy = prefs.getString("sensor_id", "") ?: ""
-        return if (legacy.isNotBlank()) listOf(legacy) else listOf("S001")
+        return if (legacy.isNotBlank()) listOf(legacy) else listOf("S001", "S002")
     }
 
     fun setSensorIds(ids: List<String>) =

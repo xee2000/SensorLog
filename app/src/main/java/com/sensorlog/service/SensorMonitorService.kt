@@ -60,6 +60,9 @@ class SensorMonitorService : Service() {
     private var lastMonitoringText = "센서 모니터링 중..."
     private var lastAlertMessage: String? = null
 
+    /** 경보가 이미 발생 중인지 추적 (true일 때는 진동/소리 재울리지 않음) */
+    private var alertActive = false
+
     // ─────────────────────────────────────────────
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -99,10 +102,7 @@ class SensorMonitorService : Service() {
                     buildMonitoringNotification(lastMonitoringText)
                 )
             }
-            // 사용자가 경보 알림을 닫았을 때 즉시 재게시
-            ACTION_REPOST_ALERT -> {
-                lastAlertMessage?.let { showAlertNotification(it) }
-            }
+            // (경보 알림은 사용자가 닫으면 그대로 사라짐 — 재게시 없음)
         }
         return START_STICKY
     }
@@ -168,12 +168,22 @@ class SensorMonitorService : Service() {
         }
 
         if (allAlerts.isNotEmpty()) {
-            showAlertNotification(allAlerts.joinToString("\n"))
-            startVibration()
+            if (!alertActive) {
+                // 임계값 초과 최초 감지 시에만 진동+알림
+                showAlertNotification(allAlerts.joinToString("\n"))
+                startVibration()
+                alertActive = true
+            } else {
+                // 이미 경보 중: 알림 텍스트만 갱신, 진동은 재울리지 않음
+                updateAlertNotification(allAlerts.joinToString("\n"))
+            }
         } else {
-            lastAlertMessage = null
-            cancelAlertNotification()
-            stopVibration()
+            if (alertActive) {
+                lastAlertMessage = null
+                cancelAlertNotification()
+                stopVibration()
+                alertActive = false
+            }
         }
     }
 
@@ -239,23 +249,32 @@ class SensorMonitorService : Service() {
             .notify(NOTIF_ID_MONITORING, buildMonitoringNotification(text))
     }
 
-    private fun showAlertNotification(message: String) {
-        lastAlertMessage = message
-        val notification = NotificationCompat.Builder(this, CHANNEL_ALERT)
+    private fun buildAlertNotification(message: String): android.app.Notification =
+        NotificationCompat.Builder(this, CHANNEL_ALERT)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle("⚠️ 센서 임계값 초과!")
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setContentIntent(mainPendingIntent())
-            .setDeleteIntent(repostAlertPendingIntent())     // 닫혀도 즉시 재게시
+            // deleteIntent 제거 → 사용자가 닫으면 사라짐 (재게시 없음)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setOngoing(true)
-            .setAutoCancel(false)
+            .setOngoing(false)
+            .setAutoCancel(true)
             .build()
 
+    /** 처음 경보 발생 시 (진동과 함께 호출) */
+    private fun showAlertNotification(message: String) {
+        lastAlertMessage = message
         getSystemService(NotificationManager::class.java)
-            .notify(NOTIF_ID_ALERT, notification)
+            .notify(NOTIF_ID_ALERT, buildAlertNotification(message))
+    }
+
+    /** 이미 경보 중일 때 텍스트만 갱신 (진동 없음) */
+    private fun updateAlertNotification(message: String) {
+        lastAlertMessage = message
+        getSystemService(NotificationManager::class.java)
+            .notify(NOTIF_ID_ALERT, buildAlertNotification(message))
     }
 
     private fun cancelAlertNotification() {
@@ -263,18 +282,17 @@ class SensorMonitorService : Service() {
     }
 
     // ─────────────────────────────────────────────
-    /** 임계값 초과 시 반복 진동 (0ms 대기 → 600ms 진동 → 400ms 정지 → 반복) */
+    /** 임계값 최초 초과 시 1회 단발 진동 (600ms) */
     private fun startVibration() {
         if (isVibrating) return
         isVibrating = true
-        val pattern = longArrayOf(0, 600, 400)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vibrator.vibrate(
-                VibrationEffect.createWaveform(pattern, intArrayOf(0, 255, 0), 0)
+                VibrationEffect.createOneShot(600, VibrationEffect.DEFAULT_AMPLITUDE)
             )
         } else {
             @Suppress("DEPRECATION")
-            vibrator.vibrate(pattern, 0)
+            vibrator.vibrate(600)
         }
     }
 
